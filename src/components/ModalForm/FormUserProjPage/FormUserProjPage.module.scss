@@ -1,0 +1,33 @@
+.containerTable {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px; // khoảng cách giữa các phần
+  margin-top: 20px;
+}
+
+.tableWrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.buttonGroup {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-top: 120px;
+  gap: 10px;
+}
+
+.active {
+  background-color: #e6f7ff;
+  border-color: #1890ff;
+  color: #1890ff;
+
+  &:hover {
+    background-color: #bae7ff;
+    border-color: #40a9ff;
+    color: #096dd9;
+  }
+}
+
