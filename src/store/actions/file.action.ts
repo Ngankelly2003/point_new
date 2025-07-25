@@ -66,3 +66,33 @@ export const deleteProjects = createAsyncThunk(
     }
   }
 );
+
+
+
+export const updateProj = createAsyncThunk(
+  'updateProj',
+  async (
+    payload: { projectId: string; data: any },
+    thunkAPI
+  ) => {
+    try {
+      const response = await api.put(
+        `/v1/Project/update/${payload.projectId}`,
+        payload.data,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.status < 400) {
+        return response.data;
+      }
+
+      return thunkAPI.rejectWithValue(response.data);
+    } catch (err: any) {
+      return thunkAPI.rejectWithValue(err?.response?.data ?? ['Lỗi mạng hoặc dữ liệu!']);
+    }
+  }
+);

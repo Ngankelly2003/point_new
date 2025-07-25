@@ -1,0 +1,18 @@
+.wrapper {
+  width: 100%;
+}
+
+.searchBox {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.searchInput {
+  max-width: 300px;
+  width: 100%;
+
+  @media (max-width: 768px) {
+    max-width: 100%; // không quá to ở mobile
+  }
+}
