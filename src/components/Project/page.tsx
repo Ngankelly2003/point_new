@@ -19,6 +19,9 @@ import FormProject from "../ModalForm/FormProject/FormProject";
 import { errorToast, successToast } from "@/helpers/toast";
 import FormUserProjPage from "../ModalForm/FormUserProjPage/page";
 import { getUserOutSide } from "@/store/actions/user.action";
+import FormUpload from "../ModalForm/FormUpload/page";
+import { getAllProjectUploadFiles } from "@/store/actions/upload.action";
+import { FileTypeLabel } from "@/constants/enums";
 type TableChange = TableProps<any>["onChange"];
 type Sorter = SorterResult<any>;
 
@@ -49,7 +52,9 @@ function Project() {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [editData, setEditData] = useState<any>(null);
   const isNormalUser = roles.includes("normal");
-
+  const [isOpenFolder, setIsOpenFolder] = useState(false);
+  const [dataUploaded, setDataUploaded] = useState<any[]>([]);
+ 
   useEffect(() => {
     const userStr =
       typeof window !== "undefined" ? localStorage.getItem("user") : null;
@@ -59,6 +64,7 @@ function Project() {
     }
   }, []);
 
+  const handleCancel = () => setIsModalOpen(false);
   const showModal = () => {
     setMode("create");
     setEditData(null);
@@ -119,7 +125,42 @@ function Project() {
       });
   };
 
-  const handleCancel = () => setIsModalOpen(false);
+  const fetchUploaded = async (
+    projectId: string
+  ) => {
+    try {
+      const payload = {
+        search: searchValue,
+        pageNumber: pagination.pageNumber,
+        pageSize: pagination.pageSize,
+        sorts: sortedInfo?.columnKey
+          ? [
+              {
+                key: String(sortedInfo.columnKey),
+                sort: sortedInfo.order === "ascend" ? 1 : -1,
+              },
+            ]
+          : [],
+        filters: currentFilters || [],
+      };
+      const data = await dispatch(
+        getAllProjectUploadFiles({
+          projectId: projectId,
+          body: payload,
+        })
+      ).unwrap();
+      const convertData = data.result.items.map((item: any) => ({
+        ...item,
+        key: item.id,
+        typeLabel: FileTypeLabel[item.type] || "Unknown",
+        sizeWithUnit: `${item.size} MB`,
+        createdOn: formatDate(item.createdOn),
+      }));
+      setDataUploaded(convertData)
+    } catch (error) {
+      console.error("Lỗi: ", error);
+    }
+  };
 
   const fetchUserOutSide = async (projectId: string) => {
     try {
@@ -146,9 +187,20 @@ function Project() {
     fetchUserOutSide(id);
   };
 
+  const handleFolder = (id: string) => {
+    setIsOpenFolder(true);
+    fetchUploaded(id);
+     setSelectedProjectId(id);
+  };
+
   const handleCancelUserProjPage = () => {
     setIsModalOpenUserPage(false);
     fetchData();
+  };
+
+  const handleCancelUpload = () => {
+    setIsOpenFolder(false);
+    // fetchData();
   };
 
   const formatDate = (dateStr: any) => {
@@ -337,7 +389,10 @@ function Project() {
                     onClick={() => handleUserProjPage(record.id)}
                   ></Button>
                 </Badge>
-                <Button className={styles.btnIcon}>
+                <Button
+                  className={styles.btnIcon}
+                  onClick={() => handleFolder(record.id)}
+                >
                   <FolderOutlined />
                 </Button>
                 <Button
@@ -409,12 +464,16 @@ function Project() {
       <FormUserProjPage
         projectId={selectedProjectId}
         isModalOpenUserPage={isModalOpenUserPage}
-        setIsModalOpenUserPage={setIsModalOpenUserPage}
         isCancel={handleCancelUserProjPage}
+        setIsModalOpenUserPage={setIsModalOpenUserPage}
         dataTableRight={dataTableRight}
         dataTableLeft={dataTableLeft}
         fetchUserOutSide={fetchUserOutSide}
       />
+
+      <FormUpload 
+      projectId={selectedProjectId}
+      open={isOpenFolder} handleCancelUpload={handleCancelUpload} dataUploaded={dataUploaded}/>
     </div>
   );
 }
