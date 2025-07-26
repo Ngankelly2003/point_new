@@ -58,8 +58,10 @@ function FormUpload({
         cancelUpload: false,
         formFile: chunk,
       };
+      console.log(payload)
       try {
-        await dispatch(uploadChunkFile(payload));
+       const res=  await dispatch(uploadChunkFile(payload));
+       console.log("UploadREs", res)
       } catch (err) {
         console.error(err);
         throw err;
