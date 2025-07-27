@@ -1,8 +1,8 @@
-import api from '@/api/axios-client';
-import { createAsyncThunk } from '@reduxjs/toolkit';
+import api from "@/api/axios-client";
+import { createAsyncThunk } from "@reduxjs/toolkit";
 
 export const getAllProjectUploadFiles = createAsyncThunk(
-  'getAllProjectUploadFiles',
+  "getAllProjectUploadFiles",
   async (
     {
       projectId,
@@ -31,49 +31,50 @@ export const getAllProjectUploadFiles = createAsyncThunk(
 
       return thunkAPI.rejectWithValue([response.data]);
     } catch (error: any) {
-      if (error.code === 'ERR_NETWORK') {
-        return thunkAPI.rejectWithValue(['Network error!']);
+      if (error.code === "ERR_NETWORK") {
+        return thunkAPI.rejectWithValue(["Network error!"]);
       }
 
       const errorData = error?.response?.data;
-      return thunkAPI.rejectWithValue(errorData?.errors ?? ['Network error!']);
+      return thunkAPI.rejectWithValue(errorData?.errors ?? ["Network error!"]);
     }
   }
 );
 
-
 export const uploadChunkFile = createAsyncThunk(
-  'upload/uploadChunkFile',
+  "upload/uploadChunkFile",
   async (
-   {
+    {
       projectId,
       index,
       chunkCount,
       cancelUpload,
-      formFile
+      formFile,
+      filename,
     }: {
       projectId: string;
       index: number;
       chunkCount: number;
       cancelUpload: boolean;
       formFile: Blob;
+      filename: string;
     },
     thunkAPI
   ) => {
     try {
-   const formData = new FormData();
+      const formData = new FormData();
 
       formData.append("projectId", projectId);
       formData.append("index", index.toString());
       formData.append("chunkCount", chunkCount.toString());
       formData.append("cancelUpload", cancelUpload.toString());
-      formData.append("formFile", formFile); 
+      formData.append("formFile", formFile, filename);
       const response = await api.post(
-        '/v1/ProjectFile/upload-chunk',
+        "/v1/ProjectFile/upload-chunk",
         formData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         }
       );
@@ -84,12 +85,12 @@ export const uploadChunkFile = createAsyncThunk(
 
       return thunkAPI.rejectWithValue([response.data]);
     } catch (error: any) {
-      if (error.code === 'ERR_NETWORK') {
-        return thunkAPI.rejectWithValue(['Network error!']);
+      if (error.code === "ERR_NETWORK") {
+        return thunkAPI.rejectWithValue(["Network error!"]);
       }
 
       const errorData = error?.response?.data;
-      return thunkAPI.rejectWithValue(errorData?.errors ?? ['Upload error!']);
+      return thunkAPI.rejectWithValue(errorData?.errors ?? ["Upload error!"]);
     }
   }
 );

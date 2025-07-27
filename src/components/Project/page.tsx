@@ -21,7 +21,7 @@ import FormUserProjPage from "../ModalForm/FormUserProjPage/page";
 import { getUserOutSide } from "@/store/actions/user.action";
 import FormUpload from "../ModalForm/FormUpload/page";
 import { getAllProjectUploadFiles } from "@/store/actions/upload.action";
-import { FileTypeLabel } from "@/constants/enums";
+import { FileTypeLabel, StatusMap } from "@/constants/enums";
 type TableChange = TableProps<any>["onChange"];
 type Sorter = SorterResult<any>;
 
@@ -152,6 +152,7 @@ function Project() {
       const convertData = data.result.items.map((item: any) => ({
         ...item,
         key: item.id,
+        status: StatusMap[item.status],
         typeLabel: FileTypeLabel[item.type] || "Unknown",
         sizeWithUnit: `${item.size} MB`,
         createdOn: formatDate(item.createdOn),
@@ -472,8 +473,12 @@ function Project() {
       />
 
       <FormUpload 
-      projectId={selectedProjectId}
-      open={isOpenFolder} handleCancelUpload={handleCancelUpload} dataUploaded={dataUploaded}/>
+        projectId={selectedProjectId}
+        open={isOpenFolder} 
+        handleCancelUpload={handleCancelUpload} 
+        dataUploaded={dataUploaded}
+        setIsOpenFolder={setIsOpenFolder}
+       />
     </div>
   );
 }
