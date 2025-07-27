@@ -4,7 +4,7 @@ import { AppDispatch } from "@/store";
 import { Badge, Table, TableColumnsType } from "antd";
 import React, { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { deleteProjects, getProject } from "@/store/actions/file.action";
+import { deleteProjects, getFile, getProject } from "@/store/actions/file.action";
 import { Button, Popconfirm, TableProps, Tooltip } from "antd/lib";
 import {
   DeleteOutlined,
@@ -187,6 +187,7 @@ function Project() {
     setSelectedProjectId(id);
     fetchUserOutSide(id);
   };
+
 
   const handleFolder = (id: string) => {
     setIsOpenFolder(true);
@@ -390,12 +391,18 @@ function Project() {
                     onClick={() => handleUserProjPage(record.id)}
                   ></Button>
                 </Badge>
+                <Badge
+                  count={record.totalFile}
+                  offset={[-5, 5]}
+                  color="#00A8FF"
+                >
                 <Button
                   className={styles.btnIcon}
                   onClick={() => handleFolder(record.id)}
                 >
                   <FolderOutlined />
                 </Button>
+                </Badge>
                 <Button
                   className={styles.btnIcon}
                   onClick={() => handleEdit(record)}
@@ -478,6 +485,9 @@ function Project() {
         handleCancelUpload={handleCancelUpload} 
         dataUploaded={dataUploaded}
         setIsOpenFolder={setIsOpenFolder}
+        fetchUploaded= {fetchUploaded}
+        setDataProject={setDataProject}
+        fetchProjectList={fetchData}
        />
     </div>
   );

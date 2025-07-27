@@ -96,3 +96,25 @@ export const updateProj = createAsyncThunk(
     }
   }
 );
+
+
+export const getFile = createAsyncThunk(
+  'getFile',
+  async (id: string, thunkAPI) => {
+    try {
+      const response = await api.get(`/v1/Project/${id}`);
+
+      if (response.status < 400) {
+        return response.data;
+      }
+
+      return thunkAPI.rejectWithValue([response.data]);
+    } catch (error: any) {
+      if (error.code === 'ERR_NETWORK') {
+        return thunkAPI.rejectWithValue(['Network error!']);
+      }
+      const errorData = error?.response?.data;
+      return thunkAPI.rejectWithValue(errorData?.errors ?? ['Network error!']);
+    }
+  }
+);

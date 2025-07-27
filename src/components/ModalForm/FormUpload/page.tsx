@@ -1,6 +1,10 @@
-import { errorToast } from "@/helpers/toast";
+import { errorToast, successToast } from "@/helpers/toast";
 import { AppDispatch } from "@/store";
-import { uploadChunkFile } from "@/store/actions/upload.action";
+import { getFile } from "@/store/actions/file.action";
+import {
+  deleteFileUpload,
+  uploadChunkFile,
+} from "@/store/actions/upload.action";
 import { DeleteOutlined, InboxOutlined } from "@ant-design/icons";
 import Search from "antd/es/input/Search";
 import { RcFile } from "antd/es/upload";
@@ -16,15 +20,19 @@ import {
   Upload,
   UploadFile,
   UploadProps,
+  
 } from "antd/lib";
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 
 interface Props {
+  setDataProject:any,
+  fetchUploaded:any,
   projectId: any;
   open: boolean;
   dataUploaded: any;
   handleCancelUpload: () => void;
+  fetchProjectList: () => void;
   setIsOpenFolder: any;
 }
 const { Dragger } = Upload;
@@ -34,6 +42,9 @@ function FormUpload({
   dataUploaded,
   handleCancelUpload,
   setIsOpenFolder,
+  fetchUploaded,
+  setDataProject,
+  fetchProjectList
 }: Props) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
@@ -41,32 +52,67 @@ function FormUpload({
   );
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const dispatch = useDispatch<AppDispatch>();
-    const props: UploadProps = {
+  const props: UploadProps = {
     multiple: true,
     fileList,
     beforeUpload: (file: RcFile) => {
-  const allowedTypes = [".ifc", ".e57", ".laz", ".las"];
-  const fileExt = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+      const allowedTypes = [".ifc", ".e57", ".laz", ".las"];
+      const fileExt = file.name
+        .substring(file.name.lastIndexOf("."))
+        .toLowerCase();
 
-  if (!allowedTypes.includes(fileExt)) {
-    errorToast("Only ifc, e57, laz or las files can be uploaded");
-    return Upload.LIST_IGNORE;
-  }
+      if (!allowedTypes.includes(fileExt)) {
+        errorToast("Only ifc, e57, laz or las files can be uploaded");
+        return Upload.LIST_IGNORE;
+      }
 
-  const uploadFile: UploadFile = {
-    uid: file.uid,
-    name: file.name,
-    status: "done",
-    originFileObj: file,
-  };
-  setFileList((prev) => [...prev, uploadFile]);
-  return false;
-},
+      const uploadFile: UploadFile = {
+        uid: file.uid,
+        name: file.name,
+        status: "done",
+        originFileObj: file,
+      };
+      setFileList((prev) => [...prev, uploadFile]);
+      return false;
+    },
 
     onRemove: (file) => {
       setFileList((prev) => prev.filter((f) => f.uid !== file.uid));
     },
   };
+  const handleCloseModal = () => {
+    setFileList([]);
+    setUploadProgress({});
+    handleCancelUpload();
+    
+  };
+
+  const fetchFile = async (projectId: string) => {
+      try {
+        const data = await dispatch(getFile(projectId)).unwrap();
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+  const handleDelete = async (fileId: string) => {
+  try {
+    await dispatch(deleteFileUpload({ projectId, fileId }))
+      .unwrap()
+      .then(() => {
+        successToast("Xoá file thành công");
+      })
+      .catch((err: any) => {
+        errorToast(err[0]);
+      })
+      .finally(() => {
+        fetchUploaded(projectId);      
+        fetchFile(projectId);         
+        fetchProjectList();          
+      });
+  } catch (error) {}
+};
+
 
   const uploadChunks = async (file: RcFile) => {
     const chunkSize = 5 * 1024 * 1024;
@@ -119,12 +165,15 @@ function FormUpload({
     console.log("file", fileList);
     setUploading(true);
     setIsOpenFolder(false);
+
     try {
       for (const file of fileList) {
         const rawFile = file.originFileObj as RcFile;
         await uploadChunks(rawFile);
       }
       setFileList([]);
+      fetchFile(projectId);
+      fetchProjectList(); 
     } catch (error) {
       message.error("Upload thất bại");
     } finally {
@@ -235,13 +284,12 @@ function FormUpload({
         <>
           <div style={{ display: "flex", gap: "8px" }}>
             <Popconfirm
-              title="Do you want to delete this project?"
+              title="Do you want to delete this file?"
               okText="OK"
               cancelText="Cancel"
-              // onConfirm={() => handleDelete(record.id)}
+              onConfirm={() => handleDelete(record.id)}
             >
               <Button
-                //   className={styles.btnIcon}
                 style={{
                   border: "1px solid red",
                   color: "red",
@@ -257,38 +305,38 @@ function FormUpload({
     },
   ];
   return (
-    <Modal open={open} width={1000} onCancel={handleCancelUpload} footer={null}>
+    <Modal open={open} width={1000} onCancel={handleCloseModal} footer={null}>
       <div>
         <h3>Upload folder</h3>
         <hr></hr>
       </div>
       <div style={{ display: "flex", gap: "20px", flexDirection: "column" }}>
         <div
-  style={{
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 16,
-    flexWrap: "wrap",
-  }}
->
-  <Search
-    placeholder="Tìm kiếm"
-    style={{
-      flexGrow: 1,
-      flexShrink: 1,
-      minWidth: 150,
-      maxWidth: 500,
-    }}
-  />
-  <Button
-    type="primary"
-    onClick={handleUpload}
-    disabled={fileList.length === 0}
-    loading={uploading}
-  >
-    + Upload
-  </Button>
-</div>
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <Search
+            placeholder="Tìm kiếm"
+            style={{
+              flexGrow: 1,
+              flexShrink: 1,
+              minWidth: 150,
+              maxWidth: 500,
+            }}
+          />
+          <Button
+            type="primary"
+            onClick={handleUpload}
+            disabled={fileList.length === 0}
+            loading={uploading}
+          >
+            + Upload
+          </Button>
+        </div>
 
         <div>
           {fileList.map((file) => (
@@ -304,8 +352,9 @@ function FormUpload({
           ))}
         </div>
         <div>
-          <Dragger {...props} 
-          // accept=".ifc, .e57, .laz, .las"
+          <Dragger
+            {...props}
+            // accept=".ifc, .e57, .laz, .las"
           >
             <p className="ant-upload-drag-icon">
               <InboxOutlined />
@@ -320,7 +369,12 @@ function FormUpload({
           </Dragger>
         </div>
         <div>
-          <Table rowKey={"id"} columns={columns} dataSource={dataUploaded} scroll={{ x: "max-content" }}/>
+          <Table
+            rowKey={"id"}
+            columns={columns}
+            dataSource={dataUploaded}
+            scroll={{ x: "max-content" }}
+          />
         </div>
       </div>
     </Modal>

@@ -94,3 +94,35 @@ export const uploadChunkFile = createAsyncThunk(
     }
   }
 );
+
+
+export const deleteFileUpload = createAsyncThunk(
+  "deleteFileUpload",
+   async (
+    {
+      projectId,
+      fileId 
+    }: {
+      projectId: string;
+      fileId :string
+    },
+    thunkAPI
+  ) => {
+    try {
+      const response = await api.delete(`v1/ProjectFile/delete/${projectId}/${fileId}`); 
+
+      if (response.status < 400) {
+        return response.data;
+      }
+      return thunkAPI.rejectWithValue([response.data]);
+    } catch (error: any) {
+      if ("code" in error && error.code === "ERR_NETWORK") {
+        return thunkAPI.rejectWithValue(["Network Error"]);
+      }
+      return thunkAPI.rejectWithValue(
+        error?.response?.data.errors ?? ["Unknown"]
+      );
+    }
+  }
+);
+
