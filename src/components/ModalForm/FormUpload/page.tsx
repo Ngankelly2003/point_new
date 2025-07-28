@@ -20,14 +20,13 @@ import {
   Upload,
   UploadFile,
   UploadProps,
-  
 } from "antd/lib";
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 
 interface Props {
-  setDataProject:any,
-  fetchUploaded:any,
+  setDataProject: any;
+  fetchUploaded: any;
   projectId: any;
   open: boolean;
   dataUploaded: any;
@@ -44,7 +43,7 @@ function FormUpload({
   setIsOpenFolder,
   fetchUploaded,
   setDataProject,
-  fetchProjectList
+  fetchProjectList,
 }: Props) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
@@ -80,39 +79,43 @@ function FormUpload({
       setFileList((prev) => prev.filter((f) => f.uid !== file.uid));
     },
   };
+  
   const handleCloseModal = () => {
+    if (uploading) {
+      handleCancelUpload();
+      return;
+    }
+
     setFileList([]);
     setUploadProgress({});
     handleCancelUpload();
-    
   };
 
   const fetchFile = async (projectId: string) => {
-      try {
-        const data = await dispatch(getFile(projectId)).unwrap();
-      } catch (error) {
-        console.error(error);
-      }
-    };
+    try {
+      const data = await dispatch(getFile(projectId)).unwrap();
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const handleDelete = async (fileId: string) => {
-  try {
-    await dispatch(deleteFileUpload({ projectId, fileId }))
-      .unwrap()
-      .then(() => {
-        successToast("Xoá file thành công");
-      })
-      .catch((err: any) => {
-        errorToast(err[0]);
-      })
-      .finally(() => {
-        fetchUploaded(projectId);      
-        fetchFile(projectId);         
-        fetchProjectList();          
-      });
-  } catch (error) {}
-};
-
+    try {
+      await dispatch(deleteFileUpload({ projectId, fileId }))
+        .unwrap()
+        .then(() => {
+          successToast("Delete completed");
+        })
+        .catch((err: any) => {
+          errorToast(err[0]);
+        })
+        .finally(() => {
+          fetchUploaded(projectId);
+          fetchFile(projectId);
+          fetchProjectList();
+        });
+    } catch (error) {}
+  };
 
   const uploadChunks = async (file: RcFile) => {
     const chunkSize = 5 * 1024 * 1024;
@@ -167,13 +170,16 @@ function FormUpload({
     setIsOpenFolder(false);
 
     try {
-      for (const file of fileList) {
-        const rawFile = file.originFileObj as RcFile;
-        await uploadChunks(rawFile);
-      }
+      await Promise.all(
+        fileList.map((file) => {
+          const rawFile = file.originFileObj as RcFile;
+          return uploadChunks(rawFile);
+        })
+      );
+
       setFileList([]);
       fetchFile(projectId);
-      fetchProjectList(); 
+      fetchProjectList();
     } catch (error) {
       message.error("Upload thất bại");
     } finally {
