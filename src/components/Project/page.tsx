@@ -22,11 +22,14 @@ import { getUserOutSide } from "@/store/actions/user.action";
 import FormUpload from "../ModalForm/FormUpload/page";
 import { getAllProjectUploadFiles } from "@/store/actions/upload.action";
 import { FileTypeLabel, StatusMap } from "@/constants/enums";
+import { useRouter } from "next/navigation";
+
 type TableChange = TableProps<any>["onChange"];
 type Sorter = SorterResult<any>;
 
 function Project() {
   const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
   const [pagination, setPagination] = useState({ pageNumber: 1, pageSize: 10 });
   const [dataProject, setDataProject] = useState<any[]>([]);
   const [sortedInfo, setSortedInfo] = useState<SorterResult<any>>({});
@@ -41,6 +44,7 @@ function Project() {
     createdBy: [],
   });
   const [searchValue, setSearchValue] = useState<string>("");
+  const [isModelOpen, setIsModelOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isModalOpenUserPage, setIsModalOpenUserPage] = useState(false);
   const [dataTableRight, setDataTableRight] = useState([]);
@@ -237,6 +241,10 @@ function Project() {
     setIsModalOpen(true);
   };
 
+  const handleModels = (id: string) =>{
+   router.push(`/${id}`);
+  }
+
   const onChange: TableChange = (paginationTable, filters, sorter) => {
     const transformedFilters = Object.entries(filters)
       .filter(([_, value]) => Array.isArray(value) && value.length > 0)
@@ -375,7 +383,9 @@ function Project() {
       render: (_: any, record: any) => (
         <>
           <div style={{ display: "flex", gap: "8px" }}>
-            <Button className={styles.btnIcon}>
+            <Button className={styles.btnIcon}
+              onClick={() => handleModels(record.id)}
+            >
               <EyeOutlined />
             </Button>
             {!isNormalUser && (
@@ -489,6 +499,8 @@ function Project() {
         setDataProject={setDataProject}
         fetchProjectList={fetchData}
        />
+      
+      
     </div>
   );
 }
