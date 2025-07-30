@@ -12,11 +12,15 @@ import { useParams } from "next/navigation";
 
 export default function ThreeJSPage() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const modelRef = useRef<THREE.Object3D | null>(null);
+  const modelRef = useRef<THREE.Object3D[]>([]);
+  const pointCloudsRef = useRef<PointCloudOctree[]>([]);
   const dispatch = useDispatch<AppDispatch>();
   const params = useParams();
   const id = params.id as string;
-  
+
+  const potree = new Potree();
+  potree.pointBudget = 2_000_000;
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -32,7 +36,6 @@ export default function ThreeJSPage() {
 
       world.scene = new OBC.SimpleScene(components);
       world.scene.setup();
-      // world.scene.three.background = null;
 
       world.renderer = new OBC.SimpleRenderer(components, container);
       world.camera = new OBC.OrthoPerspectiveCamera(components);
@@ -40,14 +43,14 @@ export default function ThreeJSPage() {
 
       components.init();
 
+      // Helpers
       const gridHelper = new THREE.GridHelper(200);
-      gridHelper.position.set(0, 0, 0);
       world.scene.three.add(gridHelper);
 
       const axesHelper = new THREE.AxesHelper(50);
-      axesHelper.position.set(0, 0, 0);
       world.scene.three.add(axesHelper);
 
+      // Setup IFC loader
       const ifcLoader = components.get(OBC.IfcLoader);
       await ifcLoader.setup({
         autoSetWasm: false,
@@ -57,6 +60,7 @@ export default function ThreeJSPage() {
         },
       });
 
+      // Setup fragments
       const githubUrl =
         "https://thatopen.github.io/engine_fragment/resources/worker.mjs";
       const fetchedUrl = await fetch(githubUrl);
@@ -75,11 +79,12 @@ export default function ThreeJSPage() {
       fragments.list.onItemSet.add(({ value: model }) => {
         model.useCamera(world.camera.three);
         world.scene.three.add(model.object);
-        modelRef.current = model.object;
+        modelRef.current.push(model.object);
         model.object.position.set(0, 0.05, 0);
         fragments.core.update(true);
       });
 
+      // Load IFC
       const loadIfc = async (path: string, index: number) => {
         const file = await fetch(path);
         const data = await file.arrayBuffer();
@@ -91,16 +96,51 @@ export default function ThreeJSPage() {
           },
         });
       };
+
+      // Load PointCloud
+      const loadPointCloudFromUrl = async (
+        cloudJsUrl: string,
+        x?: number,
+        y?: number,
+        z?: number
+      ) => {
+        try {
+          const pointcloud = await potree.loadPointCloud(
+            "cloud.js",
+            url => `${cloudJsUrl}${url}`
+          );
+          world.scene.three.add(pointcloud);
+          pointCloudsRef.current.push(pointcloud);
+          pointcloud.position.set(x ?? 0, y ?? 0, z ?? 0);
+        } catch (err) {
+          console.error("Không thể load PointCloud:", err);
+        }
+      };
+
+      // Load từ API
       const fetchAndLoadIFCFiles = async () => {
         try {
           const response = await dispatch(getModels(id)).unwrap();
           const models = response.result.modelFiles;
-
           for (let i = 0; i < models.length; i++) {
-            await loadIfc(models[i].mainLink, i);
+            const model = models[i];
+
+            if (model.type === 1) {
+              await loadIfc(model.mainLink, i);
+            }
+
+            if (model.type === 0) {
+              const cloudJsUrl = model.mainLink;
+              await loadPointCloudFromUrl(
+                cloudJsUrl,
+                model.x,
+                model.y,
+                model.z
+              );
+            }
           }
         } catch (error) {
-          console.error("Lỗi khi tải IFC từ API:", error);
+          console.error("Lỗi khi tải model từ API:", error);
         }
       };
 
@@ -116,16 +156,29 @@ export default function ThreeJSPage() {
       ref={containerRef}
       style={{ width: "100%", height: "100vh", position: "relative" }}
     >
-      <div style={{ marginTop: 8 }}>
-        <span style={{ marginRight: 8 }}>IFC</span>
-        <Switch
-          defaultChecked
-          onChange={(checked) => {
-            if (modelRef.current) {
-              modelRef.current.visible = checked;
-            }
-          }}
-        />
+      <div style={{ position: "absolute", top: 10, left: 10, zIndex: 10 }}>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ marginRight: 8 }}>IFC</span>
+          <Switch
+            defaultChecked
+            onChange={(checked) => {
+              modelRef.current.forEach((model) => {
+                model.visible = checked;
+              });
+            }}
+          />
+        </div>
+        <div>
+          <span style={{ marginRight: 8 }}>PointCloud</span>
+          <Switch
+            defaultChecked
+            onChange={(checked) => {
+              pointCloudsRef.current.forEach((pc) => {
+                pc.visible = checked;
+              });
+            }}
+          />
+        </div>
       </div>
     </div>
   );
