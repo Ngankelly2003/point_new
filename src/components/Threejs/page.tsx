@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { Potree, PointCloudOctree } from "@pnext/three-loader";
+import { PointCloudOctree, Potree } from "potree-core";
 import * as OBC from "@thatopen/components";
 import { Switch } from "antd/lib";
 import { useDispatch } from "react-redux";
@@ -19,7 +19,7 @@ export default function ThreeJSPage() {
   const id = params.id as string;
 
   const potree = new Potree();
-  potree.pointBudget = 2_000_000;
+  potree.pointBudget = 1_000_000;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -42,6 +42,8 @@ export default function ThreeJSPage() {
       await world.camera.controls.setLookAt(78, 50, -50, 26, 14, -25);
 
       components.init();
+
+      world.renderer.three.setClearColor(0x000000);
 
       // Helpers
       const gridHelper = new THREE.GridHelper(200);
@@ -99,19 +101,20 @@ export default function ThreeJSPage() {
 
       // Load PointCloud
       const loadPointCloudFromUrl = async (
-        cloudJsUrl: string,
+        cloudBaseUrl: string,
         x?: number,
         y?: number,
         z?: number
       ) => {
         try {
           const pointcloud = await potree.loadPointCloud(
-            "cloud.js",
-            url => `${cloudJsUrl}${url}`
+            "/metadata.json",
+            cloudBaseUrl
           );
+
+          pointcloud.position.set(x ?? 0, y ?? 0, z ?? 0);
           world.scene.three.add(pointcloud);
           pointCloudsRef.current.push(pointcloud);
-          pointcloud.position.set(x ?? 0, y ?? 0, z ?? 0);
         } catch (err) {
           console.error("Không thể load PointCloud:", err);
         }
@@ -145,6 +148,19 @@ export default function ThreeJSPage() {
       };
 
       await fetchAndLoadIFCFiles();
+
+      const loopPoint = () => {    
+        if (world.renderer) {
+          potree.updatePointClouds(
+            pointCloudsRef.current,
+            world.camera.three,
+            world.renderer.three
+          );
+        }
+         requestAnimationFrame(loopPoint);
+      };
+
+      loopPoint();
     };
 
     init();
