@@ -1,25 +1,74 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { PointCloudOctree, Potree } from "potree-core";
 import * as OBC from "@thatopen/components";
-import { Switch } from "antd/lib";
+import { Button, Slider, Switch } from "antd/lib";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "@/store";
 import { getModels } from "@/store/actions/models.action";
 import { useParams } from "next/navigation";
 
 export default function ThreeJSPage() {
+  const worldRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const modelRef = useRef<THREE.Object3D[]>([]);
   const pointCloudsRef = useRef<PointCloudOctree[]>([]);
   const dispatch = useDispatch<AppDispatch>();
   const params = useParams();
   const id = params.id as string;
+  const [pointSize, setPointSize] = useState(0.1);
+  const [opacity, setOpacity] = useState({
+    model: 1,
+    pointcloud: 1,
+  });
 
   const potree = new Potree();
-  potree.pointBudget = 1_000_000;
+  potree.pointBudget = 2_000_000;
+  let currentOffset = 0;
+  const spacing = 50;
+
+  const updatePointSize = (size: number) => {
+    pointCloudsRef.current.forEach((pc) => {
+      pc.material.size = size;
+      pc.material.needsUpdate = true;
+    });
+  };
+
+  const setOpacityRecursive = (object: THREE.Object3D, opacity: number) => {
+    object.traverse((child: any) => {
+      if (child.isMesh && child.material) {
+        const materials = Array.isArray(child.material)
+          ? child.material
+          : [child.material];
+
+        materials.forEach((mat: any) => {
+          mat.transparent = true;
+          mat.opacity = opacity;
+          mat.depthWrite = opacity === 1;
+          mat.needsUpdate = true;
+        });
+      }
+    });
+  };
+
+  const updateOpacity = (type: "model" | "pointcloud", opacity: number) => {
+    if (type === "model") {
+      modelRef.current.forEach((model) => {
+        setOpacityRecursive(model, opacity);
+      });
+    }
+    if (type === "pointcloud") {
+      pointCloudsRef.current.forEach((pc) => {
+        if (pc.material) {
+          pc.material.transparent = true;
+          pc.material.opacity = opacity;
+          pc.material.needsUpdate = true;
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -33,20 +82,21 @@ export default function ThreeJSPage() {
         OBC.SimpleCamera,
         OBC.SimpleRenderer
       >();
-
+      worldRef.current = world;
       world.scene = new OBC.SimpleScene(components);
       world.scene.setup();
 
       world.renderer = new OBC.SimpleRenderer(components, container);
-      world.camera = new OBC.OrthoPerspectiveCamera(components);
-      await world.camera.controls.setLookAt(78, 50, -50, 26, 14, -25);
+      world.camera = new OBC.SimpleCamera(components);
+      await world.camera.controls.setLookAt(200, 100, 150, -100, -100, -20);
 
       components.init();
-
-      world.renderer.three.setClearColor(0x000000);
+      // world.renderer.three.setClearColor(0x000000);
 
       // Helpers
-      const gridHelper = new THREE.GridHelper(200);
+      const gridHelper = new THREE.GridHelper(200, 10, 0xffffff, 0xffffff);
+      gridHelper.material.opacity = 1;
+      gridHelper.material.transparent = false;
       world.scene.three.add(gridHelper);
 
       const axesHelper = new THREE.AxesHelper(50);
@@ -77,6 +127,12 @@ export default function ThreeJSPage() {
       world.camera.controls.addEventListener("rest", () =>
         fragments.core.update(true)
       );
+      world.onCameraChanged.add((camera) => {
+        for (const [, model] of fragments.list) {
+          model.useCamera(camera.three);
+        }
+        fragments.core.update(true);
+      });
 
       fragments.list.onItemSet.add(({ value: model }) => {
         model.useCamera(world.camera.three);
@@ -84,7 +140,37 @@ export default function ThreeJSPage() {
         modelRef.current.push(model.object);
         model.object.position.set(0, 0.05, 0);
         fragments.core.update(true);
+
+        updateOpacity("model", opacity.model);
       });
+
+      const fitGridToModels = () => {
+        const box = new THREE.Box3();
+
+        modelRef.current.forEach((model) => box.expandByObject(model));
+        pointCloudsRef.current.forEach((pc) => box.expandByObject(pc));
+
+        const size = box.getSize(new THREE.Vector3());
+        const maxSize = Math.max(size.x, size.z);
+        const center = box.getCenter(new THREE.Vector3());
+
+        const newGrid = new THREE.GridHelper(
+          maxSize * 2,
+          20,
+          0xffffff,
+          0xffffff
+        );
+        newGrid.material.transparent = true;
+        newGrid.material.opacity = 1;
+        newGrid.position.set(center.x, 0, center.z);
+
+        // Remove old grid
+        world.scene.three.children = world.scene.three.children.filter(
+          (obj) => !(obj instanceof THREE.GridHelper)
+        );
+
+        world.scene.three.add(newGrid);
+      };
 
       // Load IFC
       const loadIfc = async (path: string, index: number) => {
@@ -97,6 +183,11 @@ export default function ThreeJSPage() {
               console.log(`Progress model ${index}:`, progress),
           },
         });
+        const model = modelRef.current[modelRef.current.length - 1];
+        if (model) {
+          currentOffset -= spacing;
+          model.position.set(currentOffset, 0, 0);
+        }
       };
 
       // Load PointCloud
@@ -111,14 +202,29 @@ export default function ThreeJSPage() {
             "/metadata.json",
             cloudBaseUrl
           );
+          pointcloud.position.set(currentOffset, 0, 0);
+          currentOffset -= spacing;
 
-          pointcloud.position.set(x ?? 0, y ?? 0, z ?? 0);
           world.scene.three.add(pointcloud);
           pointCloudsRef.current.push(pointcloud);
+          pointcloud.rotation.x = -Math.PI / 2;
+          updateOpacity("pointcloud", opacity.pointcloud);
         } catch (err) {
           console.error("Không thể load PointCloud:", err);
         }
       };
+
+      const loopPoint = () => {
+        if (world.renderer) {
+          potree.updatePointClouds(
+            pointCloudsRef.current,
+            world.camera.three,
+            world.renderer.three
+          );
+        }
+        requestAnimationFrame(loopPoint);
+      };
+      loopPoint();
 
       // Load từ API
       const fetchAndLoadIFCFiles = async () => {
@@ -148,33 +254,16 @@ export default function ThreeJSPage() {
       };
 
       await fetchAndLoadIFCFiles();
-
-      const loopPoint = () => {    
-        if (world.renderer) {
-          potree.updatePointClouds(
-            pointCloudsRef.current,
-            world.camera.three,
-            world.renderer.three
-          );
-        }
-         requestAnimationFrame(loopPoint);
-      };
-
-      loopPoint();
+      fitGridToModels();
     };
 
     init();
   }, []);
 
   return (
-    <div
-      id="container"
-      ref={containerRef}
-      style={{ width: "100%", height: "100vh", position: "relative" }}
-    >
+    <>
       <div style={{ position: "absolute", top: 10, left: 10, zIndex: 10 }}>
         <div style={{ marginBottom: 8 }}>
-          <span style={{ marginRight: 8 }}>IFC</span>
           <Switch
             defaultChecked
             onChange={(checked) => {
@@ -183,9 +272,9 @@ export default function ThreeJSPage() {
               });
             }}
           />
+          <span style={{ marginRight: 8 }}>IFC</span>
         </div>
         <div>
-          <span style={{ marginRight: 8 }}>PointCloud</span>
           <Switch
             defaultChecked
             onChange={(checked) => {
@@ -194,8 +283,74 @@ export default function ThreeJSPage() {
               });
             }}
           />
+          <span style={{ marginRight: 8 }}>PointCloud</span>
+        </div>
+        <div>
+          <Slider
+            min={0.1}
+            max={10}
+            step={0.1}
+            value={pointSize}
+            onChange={(value) => {
+              setPointSize(value);
+              updatePointSize(value);
+            }}
+            style={{ width: 200 }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ marginRight: 8 }}>Độ mờ IFC</span>
+          <Slider
+            min={0}
+            max={1}
+            step={0.01}
+            value={opacity.model}
+            onChange={(value) => {
+              setOpacity((prev) => ({ ...prev, model: value }));
+              updateOpacity("model", value);
+            }}
+            style={{ width: 200 }}
+          />
+        </div>
+
+        <div>
+          <span style={{ marginRight: 8 }}>Độ mờ PointCloud</span>
+          <Slider
+            min={0}
+            max={1}
+            step={0.01}
+            value={opacity.pointcloud}
+            onChange={(value) => {
+              setOpacity((prev) => ({ ...prev, pointcloud: value }));
+              updateOpacity("pointcloud", value);
+            }}
+            style={{ width: 200 }}
+          />
+        </div>
+        <div>
+          <Button
+            onClick={() => {
+              if (worldRef.current) {
+                worldRef.current.camera.fitToItems();
+              }
+            }}
+            type="primary"
+          >
+            Fit Modal
+          </Button>
         </div>
       </div>
-    </div>
+      <div
+        id="container"
+        ref={containerRef}
+        style={{
+          width: "100%",
+          height: "100vh",
+          position: "relative",
+          // marginTop: "100px",
+        }}
+      ></div>
+    </>
   );
 }
