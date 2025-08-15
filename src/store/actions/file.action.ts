@@ -118,3 +118,94 @@ export const getFile = createAsyncThunk(
     }
   }
 );
+
+export const getCompany = createAsyncThunk(
+  'getCompany',
+  async (payload: any, thunkAPI) => {
+    try {
+      const response = await api.post('/v1/Company/get-all', payload);
+
+      if (response.status < 400) {
+        return response.data;
+      }
+
+      return thunkAPI.rejectWithValue([response.data]);
+    } catch (error: any) {
+      if (error.code === 'ERR_NETWORK') {
+        return thunkAPI.rejectWithValue(['Network error!']);
+      }
+      const errorData = error?.response?.data;
+      return thunkAPI.rejectWithValue(errorData?.errors ?? ['Network error!']);
+    }
+  }
+);
+
+export const updateCompany = createAsyncThunk(
+  'updateCompany',
+  async (
+    payload: { id: string; data: any },
+    thunkAPI
+  ) => {
+    try {
+      const response = await api.put(
+        `/v1/Company/update/${payload.id}`,
+        payload.data,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.status < 400) {
+        return response.data;
+      }
+
+      return thunkAPI.rejectWithValue(response.data);
+    } catch (err: any) {
+      return thunkAPI.rejectWithValue(err?.response?.data ?? ['Lỗi mạng hoặc dữ liệu!']);
+    }
+  }
+);
+
+export const createCompany = createAsyncThunk(
+  'organize/createCompany',
+  async (formData: any, thunkAPI) => {
+    try {
+      const response = await api.post('/v1/Company/add', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.status < 400) {
+        return response.data;
+      }
+
+      return thunkAPI.rejectWithValue(response.data);
+    } catch (err: any) {
+      return thunkAPI.rejectWithValue(err?.response?.data?.errors ?? ['Network error!']);
+    }
+  } );
+
+  export const deleteCompany = createAsyncThunk(
+  "deleteCompany",
+  async (id: string, thunkAPI) => {
+    try {
+      const response = await api.delete(`v1/Company/delete/${id}`); 
+
+      if (response.status < 400) {
+        return response.data;
+      }
+      return thunkAPI.rejectWithValue([response.data]);
+    } catch (error: any) {
+      if ("code" in error && error.code === "ERR_NETWORK") {
+        return thunkAPI.rejectWithValue(["Network Error"]);
+      }
+      return thunkAPI.rejectWithValue(
+        error?.response?.data.errors ?? ["Unknown"]
+      );
+    }
+  }
+);
+

@@ -1,13 +1,11 @@
 "use client";
 import PageLoading from "@/components/PageLoading/page";
-import { StorageKey } from "@/constants/storage-key";
-import { storageGet, storageRemove } from "@/helpers/storage";
 import { successToast } from "@/helpers/toast";
 import { AppDispatch } from "@/store";
-import { logoutAuthAction, selectAuth } from "@/store/slices/auth.slice";
+import { logoutAuthAction, } from "@/store/slices/auth.slice";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 const SignOutPage = () => {
     const { push} = useRouter()

@@ -4,74 +4,138 @@ import { AppDispatch } from "@/store";
 import { Table, TableColumnsType } from "antd";
 import React, { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { deleteProjects, getProject } from "@/store/actions/file.action";
-import { Button, TableProps, Tooltip } from "antd/lib";
+import Search from "antd/es/input/Search";
+import { Button, Popconfirm, TableProps, Tooltip } from "antd/lib";
 import {
   DeleteOutlined,
   EditOutlined,
-  EyeOutlined,
-  FolderOutlined,
   UsergroupAddOutlined,
 } from "@ant-design/icons";
 import styles from "./User.module.scss";
-import { SorterResult } from "antd/es/table/interface";
-import FormProject from "../ModalForm/FormProject/FormProject";
 import { errorToast, successToast } from "@/helpers/toast";
-import { getSelectUsers, getUser } from "@/store/actions/user.action";
+import {
+  deleteUser,
+  getSelectUsers,
+  getUser,
+} from "@/store/actions/user.action";
 import FormUser from "../ModalForm/FormUser/page";
+import { useTableQuery } from "@/hooks/useTableQuery";
+import { useForm } from "antd/es/form/Form";
+type TableChange = TableProps<any>["onChange"];
 function UserPage() {
   const [dataProject, setDataProject] = useState<any[]>([]);
   const dispatch = useDispatch<AppDispatch>();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [organizes, setOrganizes] = useState<any[]>([]);
-
-  const showModal = () => {
-    setIsModalOpen(true);
-  };
+  const [editId, setEditId] = useState<any>(null);
+  const [form] = useForm();
+  const [loading, setLoading] = useState(false);
+  const {
+    pagination,
+    sortedInfo,
+    currentFilters,
+    searchValue,
+    setSearchValue,
+    onChange,
+  } = useTableQuery();
 
   useEffect(() => {
     if (isModalOpen) {
       dispatch(getSelectUsers({}))
         .unwrap()
         .then((res) => {
-          console.log("res", res);
           setOrganizes(res.result);
-        })
-        .catch((err) => console.error("Lỗi khi gọi API:", err));
+          console.log("resOri", res.result);
+          if (modalMode === "edit" && editId) {
+            const matchedOrigan = res.result.find(
+              (m: any) => m.name === editId.name
+            );
+
+            form.setFieldsValue({
+              fullName: editId.fullName,
+              email: editId.email,
+              companyId: matchedOrigan?.id,
+              password: editId.password,
+              confirmPassword: editId.confirmPassword,
+            });
+          } else {
+            form.resetFields();
+          }
+        });
     }
-  }, [isModalOpen]);
-
-  const handleCancel = () => setIsModalOpen(false);
-
-  const fetchUser = async () => {
-    const payload = {
-      search: "",
-      pageNumber: 1,
-      pageSize: 10,
-      // sorts: sorter?.columnKey ? [
-      //   {key: sorter.columnKey,
-      //     sort: sorter.order === 'ascend' ? 1: -1
-      //   }
-      // ]: [],
-      // filters:filters || [],
-      sorts: [],
-      filters: [],
-    };
-    const res: any = await dispatch(getUser(payload)).unwrap();
-    // console.log("items user" , res)
-    const items = res.result.items;
-    const mapData = items.map((item: any) => ({
-      ...item,
-      key: item.id,
-      // createdOn: formatDate(item.createdOn),
-    }));
-    setDataProject(mapData);
-  };
+  }, [isModalOpen, isModalOpen, modalMode, editId, dispatch]);
 
   useEffect(() => {
     fetchUser();
-  }, [dispatch]);
+  }, [
+    pagination,
+    sortedInfo,
+    currentFilters,
+    dispatch,
+    searchValue,
+    isModalOpen,
+  ]);
 
+  const fetchUser = async (
+    sorter: any = sortedInfo,
+    filters = currentFilters,
+    page = pagination
+  ) => {
+    setLoading(true);
+    try {
+      const payload = {
+        search: searchValue,
+        pageNumber: page.pageNumber,
+        pageSize: page.pageSize,
+        sorts: sorter?.columnKey
+          ? [
+              {
+                key: sorter.columnKey,
+                sort: sorter.order === "ascend" ? 1 : -1,
+              },
+            ]
+          : [],
+        filters: filters || [],
+      };
+
+      const res = await dispatch(getUser(payload)).unwrap();
+      const items = res.result.items;
+      const mapData = items.map((item: any) => ({
+        ...item,
+        key: item.id,
+      }));
+      setDataProject(mapData);
+    } finally {
+      setTimeout(() => {
+        setLoading(false);
+      }, 500);
+    }
+  };
+
+  const handleCancel = () => setIsModalOpen(false);
+
+  const handleDeleteUser = async (id: string) => {
+    try {
+      await dispatch(deleteUser(id)).unwrap();
+      successToast("Delete user successfully");
+      fetchUser();
+    } catch (error: any) {
+      errorToast(error?.message || "Failed to delete user");
+    }
+  };
+
+  const handleOpenEdit = (record: any) => {
+    setModalMode("edit");
+    setIsModalOpen(true);
+    setEditId(record);
+  };
+
+  const handleOpenCreate = () => {
+    setIsModalOpen(true);
+    setModalMode("create");
+    form.resetFields();
+  };
   const columns: TableColumnsType<any> = [
     {
       title: "Name",
@@ -79,7 +143,7 @@ function UserPage() {
       dataIndex: "fullName",
       key: "fullName",
       sorter: true,
-      // sortOrder: sortedInfo.columnKey === 'no' ? sortedInfo.order : null,
+
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span
@@ -100,7 +164,7 @@ function UserPage() {
       dataIndex: "email",
       key: "email",
       sorter: true,
-      // sortOrder: sortedInfo.columnKey === 'name' ? sortedInfo.order : null,
+
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span
@@ -121,7 +185,6 @@ function UserPage() {
       dataIndex: "companyName",
       key: "companyName",
       sorter: true,
-      // sortOrder: sortedInfo.columnKey === 'description' ? sortedInfo.order : null,
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span
@@ -138,7 +201,6 @@ function UserPage() {
       ),
     },
 
-
     {
       title: "Action",
       render: (_: any, record: any) => (
@@ -147,25 +209,32 @@ function UserPage() {
             <Button className={styles.btnIcon}>
               <UsergroupAddOutlined />
             </Button>
-            <Button className={styles.btnIcon}>
-              <EyeOutlined />
-            </Button>
-            <Button className={styles.btnIcon}>
-              <FolderOutlined />
-            </Button>
-            <Button className={styles.btnIcon}>
-              <EditOutlined />
-            </Button>
+
             <Button
               className={styles.btnIcon}
-              style={{
-                border: "1px solid red",
-                color: "red",
+              onClick={() => {
+                handleOpenEdit(record);
               }}
-              // onClick={() => handleDelete(record.id)}
             >
-              <DeleteOutlined />
+              <EditOutlined />
             </Button>
+            <Popconfirm
+              title="Do you want to delete this user?"
+              okText="OK"
+              cancelText="Cancel"
+              onConfirm={() => handleDeleteUser(record.id)}
+            >
+              <Button
+                className={styles.btnIcon}
+                style={{
+                  border: "1px solid red",
+                  color: "red",
+                }}
+                danger
+              >
+                <DeleteOutlined />
+              </Button>
+            </Popconfirm>
           </div>
         </>
       ),
@@ -173,24 +242,66 @@ function UserPage() {
   ];
 
   return (
-    <div>
-      <Button type="primary" onClick={showModal}>
-        + User Creation
-      </Button>
+    <>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: "7px",
+          alignItems: "center",
+        }}
+      >
+        <span>
+          <h2>Users</h2>
+        </span>
+        <Button
+          type="primary"
+          onClick={handleOpenCreate}
+          style={{
+            padding: "12px 12px",
+            height: "48px",
+            fontSize: "18px",
+            borderRadius: "8px",
+          }}
+        >
+          + User Creation
+        </Button>
+      </div>
       <FormUser
         open={isModalOpen}
         cancel={handleCancel}
         organizes={organizes}
         fetchUser={fetchUser}
         setIsModalOpen={setIsModalOpen}
+        modalMode={modalMode}
+        setModalMode={setModalMode}
+        editId={editId}
+        setEditId={setEditId}
+        form={form}
       />
-      <Table
-        columns={columns}
-        dataSource={dataProject}
-        scroll={{ x: 'max-content' }}
-        size="small"
-      />
-    </div>
+
+      <div style={{ marginBottom: "20px" }}>
+        <Search
+          placeholder="Search"
+          allowClear
+          size="middle"
+          style={{ width: 350 }}
+          onSearch={(value) => {
+            setSearchValue(value);
+          }}
+        />
+      </div>
+      <div>
+        <Table
+          onChange={onChange as TableChange}
+          columns={columns}
+          dataSource={dataProject}
+          scroll={{ x: "max-content" }}
+          size="small"
+          loading={loading}
+        />
+      </div>
+    </>
   );
 }
 

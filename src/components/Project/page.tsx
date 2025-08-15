@@ -4,7 +4,11 @@ import { AppDispatch } from "@/store";
 import { Badge, Table, TableColumnsType } from "antd";
 import React, { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { deleteProjects, getFile, getProject } from "@/store/actions/file.action";
+import {
+  deleteProjects,
+  getFile,
+  getProject,
+} from "@/store/actions/file.action";
 import { Button, Popconfirm, TableProps, Tooltip } from "antd/lib";
 import {
   DeleteOutlined,
@@ -23,19 +27,25 @@ import FormUpload from "../ModalForm/FormUpload/page";
 import { getAllProjectUploadFiles } from "@/store/actions/upload.action";
 import { FileTypeLabel, StatusMap } from "@/constants/enums";
 import { useRouter } from "next/navigation";
+import { formatDate } from "@/utils/format";
+import { useTableQuery } from "@/hooks/useTableQuery";
 
 type TableChange = TableProps<any>["onChange"];
 type Sorter = SorterResult<any>;
 
 function Project() {
+  const {
+    pagination,
+    sortedInfo,
+    currentFilters,
+    searchValue,
+    onChange,
+    setSearchValue,
+  } = useTableQuery();
+
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  const [pagination, setPagination] = useState({ pageNumber: 1, pageSize: 10 });
   const [dataProject, setDataProject] = useState<any[]>([]);
-  const [sortedInfo, setSortedInfo] = useState<SorterResult<any>>({});
-  const [currentFilters, setCurrentFilters] = useState<
-    { key: string; value: string[] }[]
-  >([]);
   const [filterOptions, setFilterOptions] = useState<{
     createdOn: any[];
     createdBy: any[];
@@ -43,9 +53,9 @@ function Project() {
     createdOn: [],
     createdBy: [],
   });
-  const [searchValue, setSearchValue] = useState<string>("");
-  const [isModelOpen, setIsModelOpen] = useState(false);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isOpenFolder, setIsOpenFolder] = useState(false);
   const [isModalOpenUserPage, setIsModalOpenUserPage] = useState(false);
   const [dataTableRight, setDataTableRight] = useState([]);
   const [dataTableLeft, setDataTableLeft] = useState([]);
@@ -56,9 +66,9 @@ function Project() {
   const [mode, setMode] = useState<"create" | "edit">("create");
   const [editData, setEditData] = useState<any>(null);
   const isNormalUser = roles.includes("normal");
-  const [isOpenFolder, setIsOpenFolder] = useState(false);
   const [dataUploaded, setDataUploaded] = useState<any[]>([]);
- 
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     const userStr =
       typeof window !== "undefined" ? localStorage.getItem("user") : null;
@@ -68,6 +78,78 @@ function Project() {
     }
   }, []);
 
+  useEffect(() => {
+    fetchData();
+  }, [pagination, sortedInfo, currentFilters, dispatch, searchValue]);
+
+  const fetchData = (
+    sorter: any = sortedInfo,
+    filters = currentFilters,
+    page = pagination
+  ) => {
+    setLoading(true);
+    try {
+      const payload = {
+        search: searchValue,
+        pageNumber: page.pageNumber,
+        pageSize: page.pageSize,
+        sorts: sorter?.columnKey
+          ? [
+              {
+                key: sorter.columnKey,
+                sort: sorter.order === "ascend" ? 1 : -1,
+              },
+            ]
+          : [],
+        filters: filters || [],
+      };
+
+      dispatch(getProject(payload))
+        .unwrap()
+        .then((res: any) => {
+          const items = res.result.items;
+          console.log("items", items);
+          const mapData = items.map((item: any) => ({
+            ...item,
+            key: item.id,
+            createdOn: formatDate(item.createdOn),
+          }));
+          setDataProject(mapData);
+
+          if (
+            filterOptions.createdOn.length === 0 ||
+            filterOptions.createdBy.length === 0
+          ) {
+            const uniqueDates = [
+              ...new Set(items.map((i: any) => formatDate(i.createdOn))),
+            ];
+            const uniqueAuthors = Array.from(
+              new Map(
+                items.map((i: any) => [i.createdById, i.createdBy])
+              ).entries()
+            );
+            setFilterOptions((prev) => ({
+              ...prev,
+              createdOn:
+                prev.createdOn.length === 0
+                  ? uniqueDates.map((d) => ({ text: d, value: d }))
+                  : prev.createdOn,
+              createdBy:
+                prev.createdBy.length === 0
+                  ? uniqueAuthors.map(([id, name]) => ({
+                      text: name,
+                      value: id,
+                    }))
+                  : prev.createdBy,
+            }));
+          }
+        });
+    } finally {
+      setTimeout(() => {
+        setLoading(false);
+      }, 500);
+    }
+  };
   const handleCancel = () => setIsModalOpen(false);
   const showModal = () => {
     setMode("create");
@@ -75,63 +157,7 @@ function Project() {
     setIsModalOpen(true);
   };
 
-  const fetchData = (
-    sorter: any = sortedInfo,
-    filters = currentFilters,
-    page = pagination
-  ) => {
-    const payload = {
-      search: searchValue,
-      pageNumber: page.pageNumber,
-      pageSize: page.pageSize,
-      sorts: sorter?.columnKey
-        ? [{ key: sorter.columnKey, sort: sorter.order === "ascend" ? 1 : -1 }]
-        : [],
-      filters: filters || [],
-    };
-
-    dispatch(getProject(payload))
-      .unwrap()
-      .then((res: any) => {
-        const items = res.result.items;
-        console.log("items", items);
-        const mapData = items.map((item: any) => ({
-          ...item,
-          key: item.id,
-          createdOn: formatDate(item.createdOn),
-        }));
-        setDataProject(mapData);
-
-        if (
-          filterOptions.createdOn.length === 0 ||
-          filterOptions.createdBy.length === 0
-        ) {
-          const uniqueDates = [
-            ...new Set(items.map((i: any) => formatDate(i.createdOn))),
-          ];
-          const uniqueAuthors = Array.from(
-            new Map(
-              items.map((i: any) => [i.createdById, i.createdBy])
-            ).entries()
-          );
-          setFilterOptions((prev) => ({
-            ...prev,
-            createdOn:
-              prev.createdOn.length === 0
-                ? uniqueDates.map((d) => ({ text: d, value: d }))
-                : prev.createdOn,
-            createdBy:
-              prev.createdBy.length === 0
-                ? uniqueAuthors.map(([id, name]) => ({ text: name, value: id }))
-                : prev.createdBy,
-          }));
-        }
-      });
-  };
-
-  const fetchUploaded = async (
-    projectId: string
-  ) => {
+  const fetchUploaded = async (projectId: string) => {
     try {
       const payload = {
         search: searchValue,
@@ -161,7 +187,7 @@ function Project() {
         sizeWithUnit: `${item.size} MB`,
         createdOn: formatDate(item.createdOn),
       }));
-      setDataUploaded(convertData)
+      setDataUploaded(convertData);
     } catch (error) {
       console.error("Lỗi: ", error);
     }
@@ -192,11 +218,10 @@ function Project() {
     fetchUserOutSide(id);
   };
 
-
   const handleFolder = (id: string) => {
     setIsOpenFolder(true);
     fetchUploaded(id);
-     setSelectedProjectId(id);
+    setSelectedProjectId(id);
   };
 
   const handleCancelUserProjPage = () => {
@@ -208,15 +233,6 @@ function Project() {
     setIsOpenFolder(false);
     // fetchData();
   };
-
-  const formatDate = (dateStr: any) => {
-    const d = new Date(dateStr);
-    return d.toISOString().slice(0, 10);
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [dispatch, searchValue]);
 
   const handleDelete = async (id: any) => {
     console.log("iddd", id);
@@ -241,28 +257,8 @@ function Project() {
     setIsModalOpen(true);
   };
 
-  const handleModels = (id: string) =>{
-   router.push(`/${id}`);
-  }
-
-  const onChange: TableChange = (paginationTable, filters, sorter) => {
-    const transformedFilters = Object.entries(filters)
-      .filter(([_, value]) => Array.isArray(value) && value.length > 0)
-      .map(([key, value]) => ({
-        key,
-        value: value as string[],
-      }));
-
-    setCurrentFilters(transformedFilters);
-    setSortedInfo(sorter as Sorter);
-
-    const newPagination = {
-      pageNumber: paginationTable.current || 1,
-      pageSize: paginationTable.pageSize || 10,
-    };
-
-    setPagination(newPagination);
-    fetchData(sorter as Sorter, transformedFilters, newPagination);
+  const handleModels = (id: string) => {
+    router.push(`/${id}`);
   };
 
   const columns: TableColumnsType<any> = [
@@ -383,7 +379,8 @@ function Project() {
       render: (_: any, record: any) => (
         <>
           <div style={{ display: "flex", gap: "8px" }}>
-            <Button className={styles.btnIcon}
+            <Button
+              className={styles.btnIcon}
               onClick={() => handleModels(record.id)}
             >
               <EyeOutlined />
@@ -406,12 +403,12 @@ function Project() {
                   offset={[-5, 5]}
                   color="#00A8FF"
                 >
-                <Button
-                  className={styles.btnIcon}
-                  onClick={() => handleFolder(record.id)}
-                >
-                  <FolderOutlined />
-                </Button>
+                  <Button
+                    className={styles.btnIcon}
+                    onClick={() => handleFolder(record.id)}
+                  >
+                    <FolderOutlined />
+                  </Button>
                 </Badge>
                 <Button
                   className={styles.btnIcon}
@@ -471,12 +468,13 @@ function Project() {
         scroll={{ x: "max-content" }}
         columns={columns}
         dataSource={dataProject}
-        onChange={onChange}
+        onChange={onChange as TableChange}
         pagination={{
           current: pagination.pageNumber,
           pageSize: pagination.pageSize,
         }}
         size="small"
+        loading={loading}
       />
 
       <FormUserProjPage
@@ -489,18 +487,16 @@ function Project() {
         fetchUserOutSide={fetchUserOutSide}
       />
 
-      <FormUpload 
+      <FormUpload
         projectId={selectedProjectId}
-        open={isOpenFolder} 
-        handleCancelUpload={handleCancelUpload} 
+        open={isOpenFolder}
+        handleCancelUpload={handleCancelUpload}
         dataUploaded={dataUploaded}
         setIsOpenFolder={setIsOpenFolder}
-        fetchUploaded= {fetchUploaded}
+        fetchUploaded={fetchUploaded}
         setDataProject={setDataProject}
         fetchProjectList={fetchData}
-       />
-      
-      
+      />
     </div>
   );
 }

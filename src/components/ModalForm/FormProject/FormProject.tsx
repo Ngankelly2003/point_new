@@ -7,9 +7,9 @@ import React, { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 
 interface FormProjectProps {
-  isOpen: boolean;
+  isOpen: any;
   fetchData: () => void;
-  setIsModalOpen: (val: boolean) => void;
+  setIsModalOpen: any;
   mode: "create" | "edit";
   editData: any;
   projectId: any;
@@ -43,7 +43,6 @@ function FormProject({
         .unwrap()
         .then((res) => {
           setManagers(res.result);
-
           if (mode === "edit" && editData) {
             const matchedManager = res.result.find(
               (m: any) => m.fullName === editData.manager
@@ -77,30 +76,30 @@ function FormProject({
       formData.append("manager", values.manager);
 
       if (mode === "create") {
-        await dispatch(createProject(formData)).unwrap()
-        .then(() => {
-          successToast("Creation Sucessfully");
-        })
-        .catch((err: any) => {
-          errorToast(err[0]);
-        });;
+        await dispatch(createProject(formData))
+          .unwrap()
+          .then(() => {
+            successToast("Creation Sucessfully");
+          })
+          .catch((err: any) => {
+            errorToast(err[0]);
+          });
       } else if (mode === "edit" && editData) {
-        await dispatch(
-          updateProj({ projectId: editData.id, data: formData })
-        ).unwrap()
-        .then(() => {
-          successToast("Update Sucessfully");
-        })
-        .catch((err: any) => {
-          errorToast(err[0]);
-        });
+        await dispatch(updateProj({ projectId: editData.id, data: formData }))
+          .unwrap()
+          .then(() => {
+            successToast("Update Sucessfully");
+          })
+          .catch((err: any) => {
+            errorToast(err[0]);
+          });
       }
 
       fetchData();
       setIsModalOpen(false);
       form.resetFields();
     } catch (error) {
-      console.error("Lỗi tạo hoặc cập nhật project:", error);
+      console.error("Fail:", error);
     }
   };
 

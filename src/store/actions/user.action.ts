@@ -187,7 +187,58 @@ export const removeUserToProj = createAsyncThunk(
 
       return thunkAPI.rejectWithValue(response.data);
     } catch (err: any) {
+      return thunkAPI.rejectWithValue(err?.response?.data ?? ['Error Network!']);
+    }
+  }
+);
+
+ export const deleteUser = createAsyncThunk(
+  "deleteUser",
+  async (id: string, thunkAPI) => {
+    try {
+      const response = await api.delete(`v1/User/${id}`); 
+
+      if (response.status < 400) {
+        return response.data;
+      }
+      return thunkAPI.rejectWithValue([response.data]);
+    } catch (error: any) {
+      if ("code" in error && error.code === "ERR_NETWORK") {
+        return thunkAPI.rejectWithValue(["Network Error"]);
+      }
+      return thunkAPI.rejectWithValue(
+        error?.response?.data.errors ?? ["Unknown"]
+      );
+    }
+  }
+);
+
+export const updateUser = createAsyncThunk(
+  'updateUser',
+  async (
+    payload: { id: string; data: any },
+    thunkAPI
+  ) => {
+    try {
+      const response = await api.put(
+        `/v1/User/update/${payload.id}`,
+        payload.data,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (response.status < 400) {
+        return response.data;
+      }
+
+      return thunkAPI.rejectWithValue(response.data);
+    } catch (err: any) {
       return thunkAPI.rejectWithValue(err?.response?.data ?? ['Lỗi mạng hoặc dữ liệu!']);
     }
   }
 );
+
+
