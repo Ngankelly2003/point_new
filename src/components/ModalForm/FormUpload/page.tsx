@@ -1,4 +1,5 @@
 import { errorToast, successToast } from "@/helpers/toast";
+import { useTableQuery } from "@/hooks/useTableQuery";
 import { AppDispatch } from "@/store";
 import { getFile } from "@/store/actions/file.action";
 import {
@@ -12,18 +13,19 @@ import {
   Button,
   message,
   Modal,
-  notification,
   Popconfirm,
   Progress,
   Table,
   TableColumnsType,
+  TableProps,
+  Tooltip,
   Upload,
   UploadFile,
   UploadProps,
 } from "antd/lib";
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
-
+type TableChange = TableProps<any>["onChange"];
 interface Props {
   setDataProject: any;
   fetchUploaded: any;
@@ -42,7 +44,6 @@ function FormUpload({
   handleCancelUpload,
   setIsOpenFolder,
   fetchUploaded,
-  setDataProject,
   fetchProjectList,
 }: Props) {
   const [uploading, setUploading] = useState(false);
@@ -79,7 +80,7 @@ function FormUpload({
       setFileList((prev) => prev.filter((f) => f.uid !== file.uid));
     },
   };
-  
+
   const handleCloseModal = () => {
     if (uploading) {
       handleCancelUpload();
@@ -193,38 +194,31 @@ function FormUpload({
       showSorterTooltip: false,
       dataIndex: "name",
       key: "name",
-      sorter: true,
-      // sortOrder: sortedInfo.columnKey === "no" ? sortedInfo.order : null,
-      // render: (name: string) => (
-      //   <Tooltip placement="topLeft" title={name}>
-      //     <span className={styles.largeText}>{name}</span>
-      //   </Tooltip>
-      // ),
+      render: (name: string) => (
+        <Tooltip placement="topLeft" title={name}>
+          <span>{name}</span>
+        </Tooltip>
+      ),
     },
     {
       title: "Created Date",
       dataIndex: "createdOn",
       key: "createdOn",
-      sorter: true,
-      // sortOrder: sortedInfo.columnKey === "name" ? sortedInfo.order : null,
-      // render: (name: string) => (
-      //   <Tooltip placement="topLeft" title={name}>
-      //     <span className={styles.largeText}>{name}</span>
-      //   </Tooltip>
-      // ),
+      render: (name: string) => (
+        <Tooltip placement="topLeft" title={name}>
+          <span>{name}</span>
+        </Tooltip>
+      ),
     },
     {
       title: "Size",
       dataIndex: "sizeWithUnit",
       key: "size",
-      sorter: true,
-      // sortOrder:
-      //   sortedInfo.columnKey === "description" ? sortedInfo.order : null,
-      // render: (name: string) => (
-      //   <Tooltip placement="topLeft" title={name}>
-      //     <span className={styles.largeText}>{name}</span>
-      //   </Tooltip>
-      // ),
+      render: (name: string) => (
+        <Tooltip placement="topLeft" title={name}>
+          <span>{name}</span>
+        </Tooltip>
+      ),
     },
     {
       title: "Status",
@@ -271,18 +265,15 @@ function FormUpload({
         );
       },
     },
-
     {
       title: "Type",
       dataIndex: "typeLabel",
       key: "type",
-      // sorter: true,
-      // sortOrder: sortedInfo.columnKey === "team" ? sortedInfo.order : null,
-      // render: (name: string) => (
-      //   <Tooltip placement="topLeft" title={name}>
-      //     <span className={styles.largeText}>{name}</span>
-      //   </Tooltip>
-      // ),
+      render: (name: string) => (
+        <Tooltip placement="topLeft" title={name}>
+          <span>{name}</span>
+        </Tooltip>
+      ),
     },
     {
       title: "Action",
@@ -312,28 +303,17 @@ function FormUpload({
   ];
   return (
     <Modal open={open} width={1000} onCancel={handleCloseModal} footer={null}>
-      <div>
-        <h3>Upload folder</h3>
-        <hr></hr>
-      </div>
+      <h3 style={{margin:'0'}}>Upload folder</h3>
+      <hr></hr>
       <div style={{ display: "flex", gap: "20px", flexDirection: "column" }}>
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
-            gap: 16,
+            justifyContent: "end",
+            gap: 10,
             flexWrap: "wrap",
           }}
         >
-          <Search
-            placeholder="Tìm kiếm"
-            style={{
-              flexGrow: 1,
-              flexShrink: 1,
-              minWidth: 150,
-              maxWidth: 500,
-            }}
-          />
           <Button
             type="primary"
             onClick={handleUpload}
@@ -343,20 +323,17 @@ function FormUpload({
             + Upload
           </Button>
         </div>
-
-        <div>
-          {fileList.map((file) => (
-            <div key={file.uid} style={{ marginBottom: 8 }}>
-              <span style={{ marginRight: 10 }}>{file.name}</span>
-              <Progress
-                size={30}
-                type="circle"
-                percent={uploadProgress[file.uid] || 0}
-                status={uploadProgress[file.uid] === 100 ? "success" : "active"}
-              />
-            </div>
-          ))}
-        </div>
+        {fileList.map((file) => (
+          <div key={file.uid} style={{ marginBottom: 8 }}>
+            <span style={{ marginRight: 10 }}>{file.name}</span>
+            <Progress
+              size={30}
+              type="circle"
+              percent={uploadProgress[file.uid] || 0}
+              status={uploadProgress[file.uid] === 100 ? "success" : "active"}
+            />
+          </div>
+        ))}
         <div>
           <Dragger
             {...props}

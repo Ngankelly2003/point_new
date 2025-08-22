@@ -5,7 +5,6 @@ import LoadingOutlined from '@ant-design/icons/LoadingOutlined';
 import { AppContext } from '@/context/AppContext';
 import { storageGet } from '@/helpers/storage';
 
-type PageLoadingProps = {};
 
 const PageLoading = (props: any) => {
   const { isLoading, setLoading } = useContext(AppContext);

@@ -13,4 +13,3 @@ function HomePage() {
   )
 }
 export default HomePage
-// HomePage.Layout = LayoutDefault;

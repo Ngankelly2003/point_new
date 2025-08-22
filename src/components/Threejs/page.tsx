@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { PointCloudOctree, Potree } from "potree-core";
 import * as OBC from "@thatopen/components";
-import { Button, Slider, Switch } from "antd/lib";
+import { Button, Drawer, Slider, Switch } from "antd/lib";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "@/store";
 import { getModels } from "@/store/actions/models.action";
 import { useParams } from "next/navigation";
+import { SettingOutlined } from "@ant-design/icons";
+import { AppContext } from "@/context/AppContext";
 
 export default function ThreeJSPage() {
   const worldRef = useRef<any>(null);
@@ -16,6 +18,7 @@ export default function ThreeJSPage() {
   const modelRef = useRef<THREE.Object3D[]>([]);
   const pointCloudsRef = useRef<PointCloudOctree[]>([]);
   const dispatch = useDispatch<AppDispatch>();
+  const { setLoading } = useContext(AppContext);
   const params = useParams();
   const id = params.id as string;
   const [pointSize, setPointSize] = useState(0.1);
@@ -23,7 +26,7 @@ export default function ThreeJSPage() {
     model: 1,
     pointcloud: 1,
   });
-
+  const [open, setOpen] = useState(false);
   const potree = new Potree();
   potree.pointBudget = 2_000_000;
   let currentOffset = 0;
@@ -91,7 +94,6 @@ export default function ThreeJSPage() {
       await world.camera.controls.setLookAt(200, 100, 150, -100, -100, -20);
 
       components.init();
-      // world.renderer.three.setClearColor(0x000000);
 
       // Helpers
       const gridHelper = new THREE.GridHelper(200, 10, 0xffffff, 0xffffff);
@@ -164,7 +166,6 @@ export default function ThreeJSPage() {
         newGrid.material.opacity = 1;
         newGrid.position.set(center.x, 0, center.z);
 
-        // Remove old grid
         world.scene.three.children = world.scene.three.children.filter(
           (obj) => !(obj instanceof THREE.GridHelper)
         );
@@ -226,8 +227,8 @@ export default function ThreeJSPage() {
       };
       loopPoint();
 
-      // Load từ API
       const fetchAndLoadIFCFiles = async () => {
+        setLoading(true);
         try {
           const response = await dispatch(getModels(id)).unwrap();
           const models = response.result.modelFiles;
@@ -250,6 +251,8 @@ export default function ThreeJSPage() {
           }
         } catch (error) {
           console.error("Lỗi khi tải model từ API:", error);
+        } finally {
+          setLoading(false);
         }
       };
 
@@ -263,29 +266,45 @@ export default function ThreeJSPage() {
   return (
     <>
       <div style={{ position: "absolute", top: 10, left: 10, zIndex: 10 }}>
-        <div style={{ marginBottom: 8 }}>
+        <Button
+          icon={<SettingOutlined />}
+          type="primary"
+          onClick={() => setOpen(true)}
+        >
+          Menu
+        </Button>
+      </div>
+
+      {/* Drawer menu setting */}
+      <Drawer
+        title="Setting"
+        placement="left"
+        open={open}
+        onClose={() => setOpen(false)}
+        width={300}
+      >
+        <div style={{ marginBottom: 16 }}>
           <Switch
             defaultChecked
             onChange={(checked) => {
-              modelRef.current.forEach((model) => {
-                model.visible = checked;
-              });
+              modelRef.current.forEach((model) => (model.visible = checked));
             }}
-          />
-          <span style={{ marginRight: 8 }}>IFC</span>
+          />{" "}
+          <span style={{ marginLeft: 8 }}>IFC</span>
         </div>
-        <div>
+
+        <div style={{ marginBottom: 16 }}>
           <Switch
             defaultChecked
             onChange={(checked) => {
-              pointCloudsRef.current.forEach((pc) => {
-                pc.visible = checked;
-              });
+              pointCloudsRef.current.forEach((pc) => (pc.visible = checked));
             }}
-          />
-          <span style={{ marginRight: 8 }}>PointCloud</span>
+          />{" "}
+          <span style={{ marginLeft: 8 }}>PointCloud</span>
         </div>
-        <div>
+
+        <div style={{ marginBottom: 16 }}>
+          <span>Kích thước điểm</span>
           <Slider
             min={0.1}
             max={10}
@@ -295,12 +314,11 @@ export default function ThreeJSPage() {
               setPointSize(value);
               updatePointSize(value);
             }}
-            style={{ width: 200 }}
           />
         </div>
 
-        <div style={{ marginBottom: 8 }}>
-          <span style={{ marginRight: 8 }}>Độ mờ IFC</span>
+        <div style={{ marginBottom: 16 }}>
+          <span>Độ mờ IFC</span>
           <Slider
             min={0}
             max={1}
@@ -310,12 +328,11 @@ export default function ThreeJSPage() {
               setOpacity((prev) => ({ ...prev, model: value }));
               updateOpacity("model", value);
             }}
-            style={{ width: 200 }}
           />
         </div>
 
-        <div>
-          <span style={{ marginRight: 8 }}>Độ mờ PointCloud</span>
+        <div style={{ marginBottom: 16 }}>
+          <span>Độ mờ PointCloud</span>
           <Slider
             min={0}
             max={1}
@@ -325,22 +342,23 @@ export default function ThreeJSPage() {
               setOpacity((prev) => ({ ...prev, pointcloud: value }));
               updateOpacity("pointcloud", value);
             }}
-            style={{ width: 200 }}
           />
         </div>
-        <div>
-          <Button
-            onClick={() => {
-              if (worldRef.current) {
-                worldRef.current.camera.fitToItems();
-              }
-            }}
-            type="primary"
-          >
-            Fit Modal
-          </Button>
-        </div>
-      </div>
+
+        <Button
+          block
+          type="primary"
+          onClick={() => {
+            if (worldRef.current) {
+              worldRef.current.camera.fitToItems();
+            }
+          }}
+        >
+          Fit Model
+        </Button>
+      </Drawer>
+
+      {/* Container ThreeJS */}
       <div
         id="container"
         ref={containerRef}
@@ -348,9 +366,8 @@ export default function ThreeJSPage() {
           width: "100%",
           height: "100vh",
           position: "relative",
-          // marginTop: "100px",
         }}
-      ></div>
+      />
     </>
   );
 }

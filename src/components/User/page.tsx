@@ -47,15 +47,17 @@ function UserPage() {
         .then((res) => {
           setOrganizes(res.result);
           console.log("resOri", res.result);
+          console.log("editId", editId);
           if (modalMode === "edit" && editId) {
             const matchedOrigan = res.result.find(
-              (m: any) => m.name === editId.name
+              (m: any) => m.name === editId.companyName
             );
+            console.log("matchedOrigan", matchedOrigan);
 
             form.setFieldsValue({
               fullName: editId.fullName,
               email: editId.email,
-              companyId: matchedOrigan?.id,
+              name: matchedOrigan?.id,
               password: editId.password,
               confirmPassword: editId.confirmPassword,
             });
@@ -64,7 +66,7 @@ function UserPage() {
           }
         });
     }
-  }, [isModalOpen, isModalOpen, modalMode, editId, dispatch]);
+  }, [isModalOpen, modalMode, editId, dispatch]);
 
   useEffect(() => {
     fetchUser();
@@ -206,10 +208,6 @@ function UserPage() {
       render: (_: any, record: any) => (
         <>
           <div style={{ display: "flex", gap: "8px" }}>
-            <Button className={styles.btnIcon}>
-              <UsergroupAddOutlined />
-            </Button>
-
             <Button
               className={styles.btnIcon}
               onClick={() => {

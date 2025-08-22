@@ -82,6 +82,14 @@ function Project() {
     fetchData();
   }, [pagination, sortedInfo, currentFilters, dispatch, searchValue]);
 
+  const handleCancel = () => setIsModalOpen(false);
+
+  const showModal = () => {
+    setMode("create");
+    setEditData(null);
+    setIsModalOpen(true);
+  };
+
   const fetchData = (
     sorter: any = sortedInfo,
     filters = currentFilters,
@@ -150,28 +158,28 @@ function Project() {
       }, 500);
     }
   };
-  const handleCancel = () => setIsModalOpen(false);
-  const showModal = () => {
-    setMode("create");
-    setEditData(null);
-    setIsModalOpen(true);
-  };
 
-  const fetchUploaded = async (projectId: string) => {
+  const fetchUploaded = async (
+    projectId: string,
+    sorter: any = sortedInfo,
+    filters = currentFilters,
+    page = pagination
+  ) => {
+    setLoading(true);
     try {
       const payload = {
         search: searchValue,
-        pageNumber: pagination.pageNumber,
-        pageSize: pagination.pageSize,
-        sorts: sortedInfo?.columnKey
+        pageNumber: page.pageNumber,
+        pageSize: page.pageSize,
+        sorts: sorter?.columnKey
           ? [
               {
-                key: String(sortedInfo.columnKey),
-                sort: sortedInfo.order === "ascend" ? 1 : -1,
+                key: sorter.columnKey,
+                sort: sorter.order === "ascend" ? 1 : -1,
               },
             ]
           : [],
-        filters: currentFilters || [],
+        filters: filters || [],
       };
       const data = await dispatch(
         getAllProjectUploadFiles({
@@ -189,7 +197,11 @@ function Project() {
       }));
       setDataUploaded(convertData);
     } catch (error) {
-      console.error("Lỗi: ", error);
+      console.error("Fail: ", error);
+    } finally {
+      setTimeout(() => {
+        setLoading(false);
+      }, 500);
     }
   };
 
@@ -205,10 +217,8 @@ function Project() {
 
       setDataTableRight(data.result.userAddView.items);
       setDataTableLeft(formattedLeft);
-
-      console.log("dataLeft", formattedLeft);
     } catch (error) {
-      console.error("Lỗi khi lấy user ngoài project:", error);
+      console.error("Fail:", error);
     }
   };
 
@@ -268,7 +278,6 @@ function Project() {
       dataIndex: "no",
       key: "no",
       sorter: true,
-      sortOrder: sortedInfo.columnKey === "no" ? sortedInfo.order : null,
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span className={styles.largeText}>{name}</span>
@@ -280,7 +289,6 @@ function Project() {
       dataIndex: "name",
       key: "name",
       sorter: true,
-      sortOrder: sortedInfo.columnKey === "name" ? sortedInfo.order : null,
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span className={styles.largeText}>{name}</span>
@@ -292,8 +300,6 @@ function Project() {
       dataIndex: "description",
       key: "description",
       sorter: true,
-      sortOrder:
-        sortedInfo.columnKey === "description" ? sortedInfo.order : null,
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span className={styles.largeText}>{name}</span>
@@ -305,7 +311,6 @@ function Project() {
       dataIndex: "client",
       key: "client",
       sorter: true,
-      sortOrder: sortedInfo.columnKey === "client" ? sortedInfo.order : null,
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span className={styles.largeText}>{name}</span>
@@ -317,7 +322,6 @@ function Project() {
       dataIndex: "team",
       key: "team",
       sorter: true,
-      sortOrder: sortedInfo.columnKey === "team" ? sortedInfo.order : null,
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span className={styles.largeText}>{name}</span>
@@ -329,7 +333,6 @@ function Project() {
       dataIndex: "manager",
       key: "manager",
       sorter: true,
-      sortOrder: sortedInfo.columnKey === "manager" ? sortedInfo.order : null,
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span className={styles.largeText}>{name}</span>
@@ -342,7 +345,6 @@ function Project() {
       key: "createdOn",
       sorter: true,
       filters: filterOptions.createdOn,
-      sortOrder: sortedInfo.columnKey === "createdOn" ? sortedInfo.order : null,
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span className={styles.largeText}>{name}</span>
@@ -354,8 +356,6 @@ function Project() {
       dataIndex: "createdBy",
       key: "createdById",
       sorter: true,
-      filters: filterOptions.createdBy,
-      sortOrder: sortedInfo.columnKey === "createdBy" ? sortedInfo.order : null,
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span className={styles.largeText}>{name}</span>
@@ -367,7 +367,6 @@ function Project() {
       dataIndex: "totalUsed",
       key: "totalUsed",
       sorter: true,
-      sortOrder: sortedInfo.columnKey === "totalUsed" ? sortedInfo.order : null,
       render: (name: string) => (
         <Tooltip placement="topLeft" title={name}>
           <span className={styles.largeText}>{name}</span>

@@ -1,4 +1,5 @@
 
+import PageLoading from "@/components/PageLoading/page";
 import ReduxProvider from "@/components/redux/ReduxProvider";
 import type { Metadata } from "next";
 import { ToastContainer } from 'react-toastify';

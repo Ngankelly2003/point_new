@@ -107,11 +107,11 @@ function FormUserProjPage({
     <div>
       <Modal
         open={isModalOpenUserPage}
-        title="hello"
+        title="Add user to project"
         onCancel={isCancel}
         footer={null}
         width={1500}
-      >
+      > <hr></hr>
         <div className={styles.containerTable}>
           <div className={styles.tableWrapper}>
             <h3>Users in the project</h3>
